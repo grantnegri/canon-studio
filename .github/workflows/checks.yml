@@ -1,0 +1,18 @@
+name: Checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+      - run: bash -n launch.sh webcam.sh install-desktop.sh
+      - name: Check browser JavaScript
+        run: |
+          python -c "from pathlib import Path; print(Path('index.html').read_text().split('<script>')[1].split('</script>')[0])" > /tmp/canon-studio-ui.js
+          node --check /tmp/canon-studio-ui.js

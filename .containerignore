@@ -1,0 +1,10 @@
+**
+!Containerfile
+!.containerignore
+!config.py
+!camera_bridge.py
+!server.py
+!index.html
+!webcam.sh
+!container-entrypoint.sh
+!runtime.py

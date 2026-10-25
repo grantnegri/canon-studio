@@ -6,7 +6,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, unquote
 
 from config import ROOT, CAPTURES, DATA_DIR, PORT, SOCKET, VIDEO_DEVICE
-SCRIPT = ROOT / 'webcam.sh'
+from runtime import CameraRuntime
+camera_runtime = CameraRuntime()
 lock = threading.RLock()
 frame_condition = threading.Condition()
 frame = b''
@@ -35,7 +36,7 @@ def camera_command(command):
         raise ValueError('Camera controls are unavailable. Start the camera feed, then try again.') from e
 
 def camera_on():
-    return subprocess.run(['systemctl', '--user', 'is-active', '--quiet', 'canon-webcam.service']).returncode == 0
+    return camera_runtime.active()
 
 def preview_worker():
     global frame, frame_time, preview_process
@@ -215,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 elif self.path == '/api/camera/start':
                     started = time.monotonic()
-                    subprocess.run(['bash',str(SCRIPT),'start'],check=True,capture_output=True,timeout=15)
+                    camera_runtime.start()
                     with frame_condition:
                         ready = frame_condition.wait_for(lambda: frame_time > started, timeout=9)
                     if not ready:
@@ -223,7 +224,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path == '/api/camera/stop':
                     if recording: raise ValueError('Stop recording before turning off the camera feed.')
                     if preview_process: preview_process.terminate()
-                    subprocess.run(['bash',str(SCRIPT),'stop'],check=True,capture_output=True,timeout=15)
+                    camera_runtime.stop()
                 elif self.path == '/api/snapshot':
                     with frame_condition:
                         if time.monotonic()-frame_time > 3: raise ValueError('Camera preview is not ready.')
@@ -269,4 +270,5 @@ if __name__ == '__main__':
         shutdown.set()
         with lock: finish_recording()
         if preview_process: preview_process.terminate()
+        camera_runtime.close()
         server.server_close()

@@ -16,7 +16,7 @@ The original setup was tested on Bazzite with an EOS 550D / Rebel T2i and Canon 
 
 ## Requirements
 
-Run on a Linux desktop with Python 3, a working systemd user session, libgphoto2, FFmpeg, and a writable v4l2loopback device. Recording requires FFmpeg's `libx264` encoder; microphone recording also requires its PulseAudio input support (including PipeWire's PulseAudio compatibility service).
+For native installation, run on a Linux desktop with Python 3, a working systemd user session, libgphoto2, FFmpeg, and a writable v4l2loopback device. For Bazzite, the rootless Podman setup below supplies the camera and media dependencies in a container. Recording requires FFmpeg's `libx264` encoder; microphone recording also requires its PulseAudio input support (including PipeWire's PulseAudio compatibility service).
 
 For Ubuntu/Debian, the usual dependencies are:
 
@@ -70,6 +70,50 @@ bash webcam.sh start
 bash webcam.sh status
 bash webcam.sh stop
 ```
+
+## Bazzite: rootless Podman
+
+Run these commands on the **Bazzite host**, as your desktop user, from the source checkout. Podman and host Python 3 are required. The container supplies libgphoto2 and FFmpeg, including recording support; it does not require systemd inside the container.
+
+A writable **host v4l2loopback device is still required**: containers cannot supply or load the running host kernel's module. Use the device discovery and module-loading guidance above. Connect and power on the USB camera, then substitute your confirmed loopback device:
+
+```bash
+export CANON_STUDIO_VIDEO_DEVICE=/dev/video10
+./podman.sh build
+./podman.sh open
+```
+
+Click **Start camera** in the UI. `open` starts the container and opens the browser; `start` starts it without opening a browser. The script validates that the selected video device uses v4l2loopback and discovers the connected EOS 550D / T2i by USB identity. Native `canon-studio.service` or `canon-webcam.service` sessions must be stopped first, after finishing any recording:
+
+```bash
+systemctl --user stop canon-studio.service canon-webcam.service
+```
+
+Manage the container and optionally install an application-menu entry with the same environment settings:
+
+```bash
+./podman.sh status
+./podman.sh logs
+./podman.sh stop
+./install-container-desktop.sh
+```
+
+Captures persist in the configured host data directory across container replacement. After unplugging, reconnecting, or power-cycling the camera, run `./podman.sh stop` followed by `./podman.sh start` to rediscover its USB address. Rebuild with `./podman.sh build` after updating the checkout, then stop/start to use the new image.
+
+Only the selected video and USB device nodes are passed through. The rootless container preserves your user ID and supplementary device-access groups (Podman's `crun` runtime supports `keep-groups`), drops capabilities, and uses no privileged mode. Host networking lets the server remain bound to `127.0.0.1`; the UI stays at [localhost:8784](http://127.0.0.1:8784). SELinux container labeling is disabled for this container to allow access to the selected devices and optional audio socket; ordinary host user permissions still apply.
+
+Microphone recording uses the desktop's PulseAudio/PipeWire socket when available. Set `CANON_STUDIO_MICROPHONE=off` to omit audio socket access; the preview, photos, and silent recording still work. Select microphone recording in the UI only when audio is available.
+
+Additional container settings:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CANON_STUDIO_USB_DEVICE` | Auto-discover EOS 550D / T2i | Explicit `/dev/bus/usb/BBB/DDD` for another Canon body or multiple cameras; the script verifies Canon USB identity. Other bodies remain unverified, and this address changes after reconnecting. |
+| `CANON_STUDIO_MICROPHONE` | `auto` | Use an available desktop audio socket; `off` disables passthrough. |
+| `CANON_STUDIO_IMAGE` | `localhost/canon-studio:latest` | Locally built image name. |
+| `CANON_STUDIO_CONTAINER` | `canon-studio` | Container name. |
+
+The desktop installer preserves these settings and the common settings below. Build the image before launching from the application menu. The image is built locally; no publishing or registry account is needed.
 
 ## Configuration and files
 

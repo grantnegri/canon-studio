@@ -202,7 +202,14 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('Expected a JSON object.')
             with lock:
                 last_error = ''
-                if self.path == '/api/settings/set':
+                if self.path == '/api/shutdown':
+                    finish_recording()
+                    if preview_process: preview_process.terminate()
+                    camera_runtime.stop()
+                    self.json({'ok': True})
+                    threading.Thread(target=self.server.shutdown, daemon=True).start()
+                    return
+                elif self.path == '/api/settings/set':
                     self.json(camera_command({'op':'set','name':data.get('name'),'value':data.get('value')}))
                     return
                 elif self.path == '/api/focus':

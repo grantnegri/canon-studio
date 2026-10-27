@@ -4,6 +4,8 @@ A local Linux webcam studio for the Canon EOS Rebel T2i / EOS 550D. Preview a US
 
 Built with Python's standard library, libgphoto2, FFmpeg, and v4l2loopback. No Python packages or cloud account are required. This is an independent project, not affiliated with Canon.
 
+Use **Quit Canon Studio** in the UI to save any active recording, release the camera, and stop the service/container. Reopen it from the application menu to start again. **Stop camera** only stops the camera feed.
+
 ## Features
 
 - Live preview and a virtual webcam for calling and streaming apps.

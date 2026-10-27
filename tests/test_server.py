@@ -78,6 +78,20 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(len(photos),1)
         self.assertEqual(photos[0].read_bytes(),b'test-jpeg')
 
+    def test_shutdown_finalizes_recording_and_stops_camera(self):
+        with patch.object(server, 'finish_recording') as finish, \
+             patch.object(server.camera_runtime, 'stop') as stop, \
+             patch.object(self.http, 'shutdown') as shutdown:
+            status, _, body = self.request('POST', '/api/shutdown', '{}', {'X-Camera-Studio':'1'})
+            self.assertEqual(status, 200)
+            self.assertTrue(json.loads(body)['ok'])
+            finish.assert_called_once()
+            stop.assert_called_once()
+            for _ in range(100):
+                if shutdown.called: break
+                time.sleep(.01)
+            shutdown.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()
